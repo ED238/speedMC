@@ -8,30 +8,38 @@
 <script type="text/javascript">
 function I(i){return document.getElementById(i);}
 
-//LIST OF TEST SERVERS. Leave empty if you're doing a standalone installation. See documentation for details
-var SPEEDTEST_SERVERS=[
-	/*{	//this server doesn't actually exist, remove it
-		name:"Example Server 1", //user friendly name for the server
-		server:"//test1.mydomain.com/", //URL to the server. // at the beginning will be replaced with http:// or https:// automatically
-		dlURL:"backend/garbage.php",  //path to download test on this server (garbage.php or replacement)
-		ulURL:"backend/empty.php",  //path to upload test on this server (empty.php or replacement)
-		pingURL:"backend/empty.php",  //path to ping/jitter test on this server (empty.php or replacement)
-		getIpURL:"backend/getIP.php"  //path to getIP on this server (getIP.php or replacement)
-	},
-	{	//this server doesn't actually exist, remove it
-		name:"Example Server 2", //user friendly name for the server
-		server:"//test2.example.com/", //URL to the server. // at the beginning will be replaced with http:// or https:// automatically
-		dlURL:"garbage.php",  //path to download test on this server (garbage.php or replacement)
-		ulURL:"empty.php",  //path to upload test on this server (empty.php or replacement)
-		pingURL:"empty.php",  //path to ping/jitter test on this server (empty.php or replacement)
-		getIpURL:"getIP.php"  //path to getIP on this server (getIP.php or replacement)
-	}*/
-	//add other servers here, comma separated
-];
-
-//INITIALIZE SPEEDTEST
+//LIST OF TEST SERVERS. See documentation for details if needed
+<?php
+$mode=getenv("MODE");
+if($mode=="standalone" || $mode=="backend"){ ?>
+var SPEEDTEST_SERVERS=[];
+<?php } else { ?>
+var SPEEDTEST_SERVERS= <?= file_get_contents('/servers.json') ?: '[]' ?>;
+<?php } 
+if ($mode=="dual"){ ?>
+// add own server in dual mode
+SPEEDTEST_SERVERS.unshift({
+	"name":"This Server",
+	"server":document.location.href+"backend/",
+	"id":1,
+	"dlURL":"garbage.php",
+	"ulURL":"empty.php",
+	"pingURL":"empty.php",
+	"getIpURL":"getIP.php",
+	"pingT":-1
+})
+<?php } ?>
+//INITIALIZE SPEED TEST
 var s=new Speedtest(); //create speed test object
-s.setParameter("telemetry_level","basic"); //enable basic telemetry (for results sharing)
+<?php if(getenv("TELEMETRY")=="true"){ ?>
+s.setParameter("telemetry_level","basic");
+<?php } ?>
+<?php if(getenv("DISABLE_IPINFO")=="true"){ ?>
+s.setParameter("getIp_ispInfo",false);
+<?php } ?>
+<?php if(getenv("DISTANCE")){ ?>
+s.setParameter("getIp_ispInfo_distance","<?=getenv("DISTANCE") ?>");
+<?php } ?>
 
 //SERVER AUTO SELECTION
 function initServers(){
@@ -205,16 +213,6 @@ function initUI(){
 		background:#FFFFFF;
 		color:#202020;
 	}
-	body::before {
-	content: "";
-	position: fixed;
-	top: 0; left: 0; right: 0; bottom: 0;
-	background: url("logo.png.jpg") no-repeat center center fixed;
-	background-size: cover;
-	opacity: 0.1;
-	z-index: 0;
-	pointer-events: none;
-}
 	body{
 		text-align:center;
 		font-family:"Roboto",sans-serif;
@@ -430,16 +428,18 @@ function initUI(){
 		}
 	}
 </style>
-<title> MC Comunicaciones</title>
+<title><?= getenv('TITLE') ?: 'LibreSpeed' ?></title>
 </head>
 <body onload="initServers()">
-<h1> MC Comunicaciones</h1>
+<h1><?= getenv('TITLE') ?: 'LibreSpeed' ?></h1>
 <div id="loading" class="visible">
 	<p id="message"><span class="loadCircle"></span>Selecting a server...</p>
 </div>
 <div id="testWrapper" class="hidden">
 	<div id="startStopBtn" onclick="startStop()"></div><br/>
-	<a class="privacy" href="#" onclick="I('privacyPolicy').style.display=''">Privacy</a>
+	<?php if(getenv("TELEMETRY")=="true"){ ?>
+		<a class="privacy" href="#" onclick="I('privacyPolicy').style.display=''">Privacy</a>
+	<?php } ?>
 	<div id="serverArea">
 		Server: <select id="server" onchange="s.setSelectedServer(SPEEDTEST_SERVERS[this.value])"></select>
 	</div>
@@ -506,7 +506,7 @@ function initUI(){
             <li>Allow sharing of test results (sharable image for forums, etc.)</li>
             <li>To improve the service offered to you (for instance, to detect problems on our side)</li>
         </ul>
-        No utilizamos informacion personal ni la registramos en nuestros servidores.
+        No personal information is disclosed to third parties.
     </p>
     <h4>Your consent</h4>
     <p>
@@ -514,7 +514,8 @@ function initUI(){
     </p>
     <h4>Data removal</h4>
     <p>
-        Tu información esta a salvo con MC Comunicaciones</a>.
+        If you want to have your information deleted, you need to provide either the ID of the test or your IP address. This is the only way to identify your data, without this information we won't be able to comply with your request.<br/><br/>
+        Contact this email address for all deletion requests: <a href="mailto:<?=getenv("EMAIL") ?>"><?=getenv("EMAIL") ?></a>.
     </p>
     <br/><br/>
     <div class="closePrivacyPolicy">
